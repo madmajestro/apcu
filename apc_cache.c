@@ -168,6 +168,9 @@ static void apc_cache_wlocked_remove_entry(apc_cache_t *cache, apc_cache_entry_t
 	/* think here is safer */
 	*entry = (*entry)->next;
 
+	if (dead->next)
+		dead->next->prev = dead->prev;
+
 	/* adjust header info */
 	if (cache->header->mem_size)
 		cache->header->mem_size -= dead->mem_size;
@@ -180,8 +183,13 @@ static void apc_cache_wlocked_remove_entry(apc_cache_t *cache, apc_cache_entry_t
 		free_entry(cache, dead);
 	} else {
 		/* add to gc if there are still refs */
-		dead->next = cache->header->gc;
 		dead->dtime = time(0);
+		dead->next = cache->header->gc;
+		dead->prev = NULL;
+
+		if (dead->next)
+			dead->next->prev = dead;
+
 		cache->header->gc = dead;
 	}
 }
@@ -219,6 +227,9 @@ static void apc_cache_wlocked_gc(apc_cache_t* cache)
 
 				/* set next entry */
 				*entry = (*entry)->next;
+
+				if (dead->next)
+					dead->next->prev = dead->prev;
 
 				/* free entry */
 				free_entry(cache, dead);
@@ -385,6 +396,11 @@ static inline zend_bool apc_cache_wlocked_insert(
 		/* link in new entry */
 		new_entry->next = *entry;
 		*entry = new_entry;
+
+		if (new_entry->next) {
+			new_entry->prev = new_entry->next->prev;
+			new_entry->next->prev = new_entry;
+		}
 
 		cache->header->mem_size += new_entry->mem_size;
 		cache->header->nentries++;
@@ -1010,6 +1026,7 @@ static void apc_cache_init_entry(
 	ZVAL_COPY_VALUE(&entry->val, val);
 
 	entry->next = NULL;
+	entry->prev = NULL;
 	entry->ref_count = 0;
 	entry->mem_size = 0;
 	entry->nhits = 0;
