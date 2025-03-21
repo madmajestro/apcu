@@ -52,7 +52,7 @@ struct apc_cache_entry_t {
 	zend_string *key;        /* entry key */
 	zval val;                /* the zval copied at store time */
 	apc_cache_entry_t *next; /* next entry in linked list */
-	apc_cache_entry_t *prev; /* previous entry in linked list */
+	apc_cache_entry_t **pprev;/* previous entry in linked list */
 	zend_long ttl;           /* the ttl on this specific entry */
 	zend_long ref_count;     /* the reference count of this entry */
 	zend_long nhits;         /* number of hits to this entry */
