@@ -658,6 +658,37 @@ PHP_APCU_API zend_bool apc_sma_get_avail_size(apc_sma_t* sma, size_t size) {
 	return 0;
 }
 
+PHP_APCU_API zend_bool apc_sma_defrag(apc_sma_t* sma, size_t size) {
+	int32_t i;
+	size_t realsize = ALIGNWORD(size + ALIGNWORD(sizeof(struct block_t)));
+
+	for (i = 0; i < sma->num; i++) {
+		sma_header_t *shmaddr = SMA_HDR(sma, i);
+
+		/* If total size of available memory is too small, we can skip the contiguous-block check */
+		if (shmaddr->avail < realsize) {
+			continue;
+		}
+
+		SMA_LOCK(sma, i);
+		block_t *cur = BLOCKAT(ALIGNWORD(sizeof(sma_header_t)));
+
+		/* Look for a contiguous block of memory */
+		while (cur->fnext) {
+			cur = BLOCKAT(cur->fnext);
+
+			if (cur->size >= realsize) {
+				SMA_UNLOCK(sma, i);
+				return 1;
+			}
+		}
+
+		SMA_UNLOCK(sma, i);
+	}
+
+	return 0;
+}
+
 PHP_APCU_API void apc_sma_check_integrity(apc_sma_t* sma)
 {
 	/* dummy */
