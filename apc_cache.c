@@ -1281,16 +1281,20 @@ PHP_APCU_API void apc_cache_entry(apc_cache_t *cache, zend_string *key, zend_fca
 }
 /*}}}*/
 
-PHP_APCU_API void apc_cache_entry_relocate(apc_cache_t* cache, apc_cache_entry_t *entry_old, apc_cache_entry_t *entry_new)
+PHP_APCU_API zend_bool apc_cache_wlocked_relocate_entry(apc_cache_entry_t *old, apc_cache_entry_t *new)
 {
-	// ptrdiff_t offset = entry_new - entry_old;
+	/* deny relocate, if block is in use */
+	if (old->ref_count > 0)
+		return 0;
 
-	if (entry_new->next)
-		entry_new->next->pprev = &entry_new->next;
+	memmove(new, old, old->mem_size);
 
-	*entry_new->pprev = entry_new;
+	if (new->next)
+		new->next->pprev = &new->next;
 
-	// Todo: when first element, slot-ptr has to be changed
+	*new->pprev = new;
+
+	return 1;
 }
 
 /*

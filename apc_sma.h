@@ -81,6 +81,8 @@ typedef struct _apc_sma_t {
 	apc_segment_t *segs;           /* segments */
 } apc_sma_t; /* }}} */
 
+typedef zend_bool (*apc_sma_relocate_f)(void *old, void *new); /* }}} */
+
 /*
 * apc_sma_api_init will initialize a shared memory allocator with num segments of the given size
 *

@@ -658,7 +658,7 @@ PHP_APCU_API zend_bool apc_sma_get_avail_size(apc_sma_t* sma, size_t size) {
 	return 0;
 }
 
-PHP_APCU_API zend_bool apc_sma_defrag(apc_sma_t* sma, size_t size) {
+PHP_APCU_API zend_bool apc_sma_defrag(apc_sma_t* sma, apc_sma_relocate_f relocate) {
 	int32_t i;
 	size_t realsize = ALIGNWORD(size + ALIGNWORD(sizeof(struct block_t)));
 
@@ -677,10 +677,56 @@ PHP_APCU_API zend_bool apc_sma_defrag(apc_sma_t* sma, size_t size) {
 		while (cur->fnext) {
 			cur = BLOCKAT(cur->fnext);
 
-			if (cur->size >= realsize) {
-				SMA_UNLOCK(sma, i);
-				return 1;
+			/* Abort if last block is reached */
+			if (cur->fnext)
+				break;
+
+			/* Try to move an allocated block to cur */
+			block_t *nxt = NEXT_SBLOCK(cur);
+			while (OFFSET(nxt) < cur->fnext) {
+				block_t backup_cur = *cur;
+				block_t backup_nxt = *nxt;
+
+				/* relocate block (skip if it can't be relocated) */
+				if (!relocate((char *) nxt + ALIGNWORD(sizeof(block_t)), (char *) cur + ALIGNWORD(sizeof(block_t))))
+					continue;
+
+				cur->size = backup_nxt.size;
+				nxt = NEXT_SBLOCK(cur);
+				cur->fnext = OFFSET(nxt);
+				SET_CANARY(cur);
+#if 0
+				cur->id = backup_nxt.id;
+#endif
+
+				/* */
+				nxt->fnext = backup_cur.fnext;
+				nxt->fprev = backup_cur.fprev;
+				BLOCKAT(nxt->fnext)->fprev = OFFSET(nxt);
+				BLOCKAT(nxt->fprev)->fnext = OFFSET(nxt);
+
+
+
+				nxt->prev_size = 0;                       /* block is alloc'd */
+				nxt->size = backup_cur.size;              /* and fix the size */
+				NEXT_SBLOCK(nxt)->prev_size = nxt->size;  /* adjust size */
+				SET_CANARY(nxt);
+
+				/* replace cur with next in free list */
+				nxt->fnext = cur->fnext;
+				nxt->fprev = cur->fprev;
+				BLOCKAT(nxt->fnext)->fprev = OFFSET(nxt);
+				BLOCKAT(nxt->fprev)->fnext = OFFSET(nxt);
+
+
+
+				sma_deallocate(void* shmaddr, size_t offset)
+
+
+				used = NEXT_SBLOCK(used);
 			}
+
+
 		}
 
 		SMA_UNLOCK(sma, i);
