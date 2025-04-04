@@ -35,12 +35,6 @@
 
 #include "apc.h"
 
-/* {{{ struct definition: apc_segment_t */
-typedef struct _apc_segment_t {
-	size_t size;            /* size of this segment */
-	void* shmaddr;          /* address of shared memory */
-} apc_segment_t; /* }}} */
-
 /* {{{ struct definition: apc_sma_link_t */
 typedef struct apc_sma_link_t apc_sma_link_t;
 struct apc_sma_link_t {
@@ -70,13 +64,11 @@ typedef struct _apc_sma_t {
 	void** data;                   /* expunge data */
 
 	/* info */
-	int32_t  num;                  /* number of segments */
 	size_t size;                   /* segment size */
-	int32_t  last;                 /* last segment */
 	size_t min_block_size;         /* expected minimum size of allocated blocks */
 
 	/* segments */
-	apc_segment_t *segs;           /* segments */
+	void *shmaddr;
 } apc_sma_t; /* }}} */
 
 /*
