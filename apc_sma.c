@@ -65,10 +65,10 @@ struct sma_header_t {
 
 typedef struct block_t block_t;
 struct block_t {
-	size_t size;       /* size of this block */
-	size_t prev_size;  /* size of sequentially previous block, 0 if prev is allocated */
-	size_t fnext;      /* offset in segment of next free block */
-	size_t fprev;      /* offset in segment of prev free block */
+	size_t   size;       /* size of this block */
+	size_t   prev_size;  /* size of sequentially previous block, 0 if prev is allocated */
+	block_t *fnext;      /* pointer to next free block in segment */
+	block_t *fprev;      /* pointer to prev free block in segment */
 #ifdef APC_SMA_CANARIES
 	size_t canary;     /* canary to check for memory overwrites */
 #endif
@@ -107,7 +107,7 @@ static inline block_t *find_block(sma_header_t *smaheader, size_t realsize) {
 	CHECK_CANARY(prv);
 
 	while (prv->fnext) {
-		cur = BLOCKAT(prv->fnext);
+		cur = prv->fnext;
 		CHECK_CANARY(cur);
 
 		/* Found a suitable block */
@@ -123,7 +123,7 @@ static inline block_t *find_block(sma_header_t *smaheader, size_t realsize) {
 		/* Try to find a smaller block that also fits */
 		prv = cur;
 		for (i = 0; i < BEST_FIT_LIMIT && prv->fnext; i++) {
-			cur = BLOCKAT(prv->fnext);
+			cur = prv->fnext;
 			CHECK_CANARY(cur);
 
 			if (cur->size >= realsize && cur->size < found->size) {
@@ -138,31 +138,28 @@ static inline block_t *find_block(sma_header_t *smaheader, size_t realsize) {
 }
 
 /* {{{ sma_allocate: tries to allocate at least size bytes in a segment */
-static APC_HOTSPOT size_t sma_allocate(sma_header_t *smaheader, size_t size, size_t min_block_size)
+static APC_HOTSPOT void *sma_allocate(sma_header_t *smaheader, size_t size, size_t min_block_size)
 {
-	block_t* prv;           /* block prior to working block */
 	block_t* cur;           /* working block in list */
 	size_t realsize;        /* actual size of block needed, including block header */
-	size_t block_header_size = ALIGNWORD(sizeof(block_t));
 
-	realsize = ALIGNWORD(size + block_header_size);
+	realsize = ALIGNWORD(size + ALIGNWORD(sizeof(block_t)));
 
 	/* First, ensure that the segment contains at least realsize free bytes, even if they are not contiguous. */
 	if (smaheader->avail < realsize) {
-		return SIZE_MAX;
+		return NULL;
 	}
 
 	cur = find_block(smaheader, realsize);
 	if (!cur) {
 		/* No suitable block found */
-		return SIZE_MAX;
+		return NULL;
 	}
 
 	if (cur->size >= realsize && cur->size < (realsize + min_block_size)) {
 		/* cur is big enough for realsize, but too small to split - unlink it */
-		prv = BLOCKAT(cur->fprev);
-		prv->fnext = cur->fnext;
-		BLOCKAT(cur->fnext)->fprev = OFFSET(prv);
+		cur->fprev->fnext = cur->fnext;
+		cur->fnext->fprev = cur->fprev;
 		NEXT_SBLOCK(cur)->prev_size = 0;  /* block is alloc'd */
 	} else {
 		/* nextfit is too big; split it into two smaller blocks */
@@ -180,34 +177,31 @@ static APC_HOTSPOT size_t sma_allocate(sma_header_t *smaheader, size_t size, siz
 		/* replace cur with next in free list */
 		nxt->fnext = cur->fnext;
 		nxt->fprev = cur->fprev;
-		BLOCKAT(nxt->fnext)->fprev = OFFSET(nxt);
-		BLOCKAT(nxt->fprev)->fnext = OFFSET(nxt);
+		nxt->fnext->fprev = nxt;
+		nxt->fprev->fnext = nxt;
 	}
 
-	cur->fnext = 0;
+	cur->fnext = NULL;
 
 	/* update the segment header */
 	smaheader->avail -= cur->size;
 
 	SET_CANARY(cur);
 
-	return OFFSET(cur) + block_header_size;
+	return (char *)cur + ALIGNWORD(sizeof(block_t));
 }
 /* }}} */
 
-/* {{{ sma_deallocate: deallocates the block at the given offset */
-static APC_HOTSPOT size_t sma_deallocate(sma_header_t *smaheader, size_t offset)
+/* {{{ sma_deallocate: deallocates the block at the given address */
+static APC_HOTSPOT size_t sma_deallocate(sma_header_t *smaheader, void *ptr)
 {
 	block_t* cur;       /* the new block to insert */
 	block_t* prv;       /* the block before cur */
 	block_t* nxt;       /* the block after cur */
 	size_t size;        /* size of deallocated block */
 
-	assert(offset >= ALIGNWORD(sizeof(block_t)));
-	offset -= ALIGNWORD(sizeof(block_t));
-
 	/* find position of new block in free list */
-	cur = BLOCKAT(offset);
+	cur = (block_t *)((char *)ptr - ALIGNWORD(sizeof(block_t)));
 
 	/* update the segment header */
 	smaheader->avail += cur->size;
@@ -216,21 +210,21 @@ static APC_HOTSPOT size_t sma_deallocate(sma_header_t *smaheader, size_t offset)
 	if (cur->prev_size != 0) {
 		/* remove prv from list */
 		prv = PREV_SBLOCK(cur);
-		BLOCKAT(prv->fnext)->fprev = prv->fprev;
-		BLOCKAT(prv->fprev)->fnext = prv->fnext;
+		prv->fnext->fprev = prv->fprev;
+		prv->fprev->fnext = prv->fnext;
 		/* cur and prv share an edge, combine them */
-		prv->size +=cur->size;
+		prv->size += cur->size;
 
 		RESET_CANARY(cur);
 		cur = prv;
 	}
 
 	nxt = NEXT_SBLOCK(cur);
-	if (nxt->fnext != 0) {
-		assert(NEXT_SBLOCK(NEXT_SBLOCK(cur))->prev_size == nxt->size);
+	if (nxt->fnext) {
+		assert(NEXT_SBLOCK(nxt)->prev_size == nxt->size);
 		/* cur and nxt shared an edge, combine them */
-		BLOCKAT(nxt->fnext)->fprev = nxt->fprev;
-		BLOCKAT(nxt->fprev)->fnext = nxt->fnext;
+		nxt->fnext->fprev = nxt->fprev;
+		nxt->fprev->fnext = nxt->fnext;
 		cur->size += nxt->size;
 
 		CHECK_CANARY(nxt);
@@ -242,9 +236,9 @@ static APC_HOTSPOT size_t sma_deallocate(sma_header_t *smaheader, size_t offset)
 	/* insert new block after prv */
 	prv = BLOCKAT(ALIGNWORD(sizeof(sma_header_t)));
 	cur->fnext = prv->fnext;
-	prv->fnext = OFFSET(cur);
-	cur->fprev = OFFSET(prv);
-	BLOCKAT(cur->fnext)->fprev = OFFSET(cur);
+	prv->fnext = cur;
+	cur->fprev = prv;
+	cur->fnext->fprev = cur;
 
 	return size;
 }
@@ -304,22 +298,22 @@ PHP_APCU_API void apc_sma_init(apc_sma_t* sma, void** data, apc_sma_expunge_f ex
 
 		first = BLOCKAT(ALIGNWORD(sizeof(sma_header_t)));
 		first->size = 0;
-		first->fnext = ALIGNWORD(sizeof(sma_header_t)) + ALIGNWORD(sizeof(block_t));
-		first->fprev = 0;
+		first->fnext = BLOCKAT(ALIGNWORD(sizeof(sma_header_t)) + ALIGNWORD(sizeof(block_t)));
+		first->fprev = NULL;
 		first->prev_size = 0;
 		SET_CANARY(first);
 
-		empty = BLOCKAT(first->fnext);
+		empty = first->fnext;
 		empty->size = smaheader->avail;
-		empty->fnext = OFFSET(empty) + empty->size;
-		empty->fprev = ALIGNWORD(sizeof(sma_header_t));
+		empty->fnext = BLOCKAT(OFFSET(empty) + empty->size);
+		empty->fprev = first;
 		empty->prev_size = 0;
 		SET_CANARY(empty);
 
-		last = BLOCKAT(empty->fnext);
+		last = empty->fnext;
 		last->size = 0;
-		last->fnext = 0;
-		last->fprev =  OFFSET(empty);
+		last->fnext = NULL;
+		last->fprev = empty;
 		last->prev_size = empty->size;
 		SET_CANARY(last);
 	}
@@ -346,7 +340,6 @@ PHP_APCU_API void apc_sma_detach(apc_sma_t* sma) {
 }
 
 PHP_APCU_API void* apc_sma_malloc(apc_sma_t* sma, size_t n) {
-	size_t off;
 	int32_t i;
 	zend_bool nuked = 0;
 	int32_t last = sma->last;
@@ -358,18 +351,15 @@ restart:
 		return NULL;
 	}
 
-	off = sma_allocate(SMA_HDR(sma, last), n, sma->min_block_size);
+	void *p = sma_allocate(SMA_HDR(sma, last), n, sma->min_block_size);
+	SMA_UNLOCK(sma, last);
 
-	if (off != SIZE_MAX) {
-		void* p = (void *)(SMA_ADDR(sma, last) + off);
-		SMA_UNLOCK(sma, last);
+	if (p) {
 #ifdef VALGRIND_MALLOCLIKE_BLOCK
 		VALGRIND_MALLOCLIKE_BLOCK(p, n, 0, 0);
 #endif
 		return p;
 	}
-
-	SMA_UNLOCK(sma, last);
 
 	for (i = 0; i < sma->num; i++) {
 		if (i == last) {
@@ -380,9 +370,8 @@ restart:
 			return NULL;
 		}
 
-		off = sma_allocate(SMA_HDR(sma, i), n, sma->min_block_size);
-		if (off != SIZE_MAX) {
-			void* p = (void *)(SMA_ADDR(sma, i) + off);
+		p = sma_allocate(SMA_HDR(sma, i), n, sma->min_block_size);
+		if (p) {
 			sma->last = i;
 			SMA_UNLOCK(sma, i);
 #ifdef VALGRIND_MALLOCLIKE_BLOCK
@@ -405,7 +394,6 @@ restart:
 
 PHP_APCU_API void apc_sma_free(apc_sma_t* sma, void* p) {
 	int32_t i;
-	size_t offset;
 
 	if (p == NULL) {
 		return;
@@ -414,13 +402,13 @@ PHP_APCU_API void apc_sma_free(apc_sma_t* sma, void* p) {
 	assert(sma->initialized);
 
 	for (i = 0; i < sma->num; i++) {
-		offset = (size_t)((char *)p - SMA_ADDR(sma, i));
-		if (p >= (void*)SMA_ADDR(sma, i) && offset < sma->size) {
+		sma_header_t *smaheader = SMA_HDR(sma, i);
+		if (p >= (void *)smaheader && p < (void *)((char *)smaheader + sma->size)) {
 			if (!SMA_LOCK(sma, i)) {
 				return;
 			}
 
-			sma_deallocate(SMA_HDR(sma, i), offset);
+			sma_deallocate(smaheader, p);
 			SMA_UNLOCK(sma, i);
 #ifdef VALGRIND_FREELIKE_BLOCK
 			VALGRIND_FREELIKE_BLOCK(p, 0);
@@ -464,14 +452,14 @@ PHP_APCU_API apc_sma_info_t *apc_sma_info(apc_sma_t* sma, zend_bool limited) {
 		link = &info->list[i];
 
 		/* For each block in this segment */
-		while (BLOCKAT(prv->fnext)->fnext != 0) {
-			block_t *cur = BLOCKAT(prv->fnext);
+		while (prv->fnext->fnext) {
+			block_t *cur = prv->fnext;
 
 			CHECK_CANARY(cur);
 
 			*link = emalloc(sizeof(apc_sma_link_t));
 			(*link)->size = cur->size;
-			(*link)->offset = prv->fnext;
+			(*link)->offset = OFFSET(prv->fnext);
 			(*link)->next = NULL;
 			link = &(*link)->next;
 
@@ -525,7 +513,7 @@ PHP_APCU_API zend_bool apc_sma_get_avail_size(apc_sma_t* sma, size_t size) {
 
 		/* Look for a contiguous block of memory */
 		while (cur->fnext) {
-			cur = BLOCKAT(cur->fnext);
+			cur = cur->fnext;
 
 			if (cur->size >= realsize) {
 				SMA_UNLOCK(sma, i);
