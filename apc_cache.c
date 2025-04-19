@@ -538,9 +538,8 @@ PHP_APCU_API zend_bool apc_cache_store(
 
 /* {{{ apc_cache_set_ttl */
 PHP_APCU_API zend_bool apc_cache_update_ttl(
-		apc_cache_t* cache, zend_string *key, const int32_t ttl) {
+		apc_cache_t *cache, zend_string *key, zend_long ttl) {
 	apc_cache_entry_t *entry;
-	zend_bool retval = 0;
 	time_t t = apc_time();
 
 	if (!cache) {

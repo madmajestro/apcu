@@ -24,9 +24,9 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_apcu_add arginfo_apcu_store
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_apcu_set_ttl, 0, 1, _IS_BOOL, 0)
-	ZEND_ARG_INFO(0, key)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, ttl, IS_LONG, 0, "0")
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_apcu_set_ttl, 0, 1, _IS_BOOL, 2)
+	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, ttl, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_apcu_inc, 0, 1, MAY_BE_LONG|MAY_BE_FALSE)
