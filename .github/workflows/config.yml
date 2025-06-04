@@ -21,6 +21,8 @@ jobs:
         run: ./configure --enable-apcu-debug
       - name: make
         run: make
+      - name: pipeline-debug
+        run: sudo sh -c "type php7.4 ; ls -l /usr/bin/php7.4"
       - name: test
         run: |
             make test TESTS="--show-diff -d apc.serializer=default tests"
