@@ -22,7 +22,13 @@ jobs:
       - name: make
         run: make
       - name: pipeline-debug
-        run: sudo sh -c "type php7.4 ; ls -l /usr/bin/php7.4"
+        run: |
+            php -v
+            php-config --php-binary
+            cat Makefile
+            sed -i -e 's/^PHP_EXECUTABLE = NONE$/PHP_EXECUTABLE = \/usr\/bin\/php/' Makefile || true
+            sed -i -e 's/Cannot run tests without CLI sapi\./Cannot run tests without CLI sapi\: PHP_EXECUTABLE\: \$\(PHP_EXECUTABLE\)/' Makefile || true
+            sed -i -e 's/exit \$\$TEST_RESULT_EXIT_CODE;/echo \"PHP_EXECUTABLE\: \$\(PHP_EXECUTABLE\)\"; exit \$\$TEST_RESULT_EXIT_CODE;/' Makefile || true
       - name: test
         run: |
             make test TESTS="--show-diff -d apc.serializer=default tests"
