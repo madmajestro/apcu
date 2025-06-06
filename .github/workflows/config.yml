@@ -11,11 +11,6 @@ jobs:
         run: sudo sh -c "echo 1 > /proc/sys/vm/nr_hugepages"
       - name: Checkout apcu
         uses: actions/checkout@v4
-      - name: remove preinstalled php versions
-        run: |
-          dpkg-query -W -f='${Package}\n' | grep php
-          sudo apt-get -y autopurge php-common
-          sudo apt-get -y install shtool
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -30,17 +25,11 @@ jobs:
       - name: pipeline-debug
         run: |
           php -v
-          php-config --prefix
-          php-config --include-dir
-          php-config --includes
-          php-config --extension-dir
           php-config --php-binary
-          php-config|| true
+          php-config || true
           cat /usr/bin/php-config
           dpkg-query -W -f='${Package}\n' | grep php
-          sed -i -e 's/^PHP_EXECUTABLE = NONE$/PHP_EXECUTABLE = \/usr\/bin\/php/' Makefile || true
-          sed -i -e 's/Cannot run tests without CLI sapi\./Cannot run tests without CLI sapi\: PHP_EXECUTABLE\: \$\(PHP_EXECUTABLE\)/' Makefile || true
-          sed -i -e 's/exit \$\$TEST_RESULT_EXIT_CODE;/echo \"PHP_EXECUTABLE\: \$\(PHP_EXECUTABLE\)\"; exit \$\$TEST_RESULT_EXIT_CODE;/' Makefile || true
+          false && sed -i -e 's/^PHP_EXECUTABLE = NONE$/PHP_EXECUTABLE = \/usr\/bin\/php/' Makefile || true
       - name: test
         run: |
             make test TESTS="--show-diff -d apc.serializer=default tests"
