@@ -16,7 +16,7 @@ jobs:
           dpkg-query -W -f='${Package}\n' | grep php
           ls -l /usr/bin/php-config
           cat /usr/bin/php-config
-          sudo apt-get -y purge php*-dev
+          sudo apt-get -y purge php-common
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
