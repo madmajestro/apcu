@@ -15,6 +15,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{matrix.version}}
+          extensions: cli
       - name: phpize
         run: phpize
       - name: configure
@@ -23,12 +24,18 @@ jobs:
         run: make
       - name: pipeline-debug
         run: |
-            php -v
-            php-config --php-binary
-            cat Makefile
-            sed -i -e 's/^PHP_EXECUTABLE = NONE$/PHP_EXECUTABLE = \/usr\/bin\/php/' Makefile || true
-            sed -i -e 's/Cannot run tests without CLI sapi\./Cannot run tests without CLI sapi\: PHP_EXECUTABLE\: \$\(PHP_EXECUTABLE\)/' Makefile || true
-            sed -i -e 's/exit \$\$TEST_RESULT_EXIT_CODE;/echo \"PHP_EXECUTABLE\: \$\(PHP_EXECUTABLE\)\"; exit \$\$TEST_RESULT_EXIT_CODE;/' Makefile || true
+          php -v
+          php-config --prefix
+          php-config --include-dir
+          php-config --includes
+          php-config --extension-dir
+          php-config --php-binary
+          php-config|| true
+          cat /usr/bin/php-config
+          dpkg-query -W -f='${Package}\n' | grep php
+          sed -i -e 's/^PHP_EXECUTABLE = NONE$/PHP_EXECUTABLE = \/usr\/bin\/php/' Makefile || true
+          sed -i -e 's/Cannot run tests without CLI sapi\./Cannot run tests without CLI sapi\: PHP_EXECUTABLE\: \$\(PHP_EXECUTABLE\)/' Makefile || true
+          sed -i -e 's/exit \$\$TEST_RESULT_EXIT_CODE;/echo \"PHP_EXECUTABLE\: \$\(PHP_EXECUTABLE\)\"; exit \$\$TEST_RESULT_EXIT_CODE;/' Makefile || true
       - name: test
         run: |
             make test TESTS="--show-diff -d apc.serializer=default tests"
