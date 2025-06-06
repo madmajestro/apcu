@@ -15,8 +15,8 @@ jobs:
         run: |
           dpkg-query -W -f='${Package}\n' | grep php
           ls -l /usr/bin/php-config
+          realpath /usr/bin/php-config
           cat /usr/bin/php-config
-          sudo apt-get -y purge php-common
       - name: Setup PHP
         uses: shivammathur/setup-php@verbose
         with:
@@ -33,6 +33,7 @@ jobs:
           php-config --php-binary
           php-config || true
           ls -l /usr/bin/php-config
+          realpath /usr/bin/php-config
           cat /usr/bin/php-config
           dpkg-query -W -f='${Package}\n' | grep php
           false && sed -i -e 's/^PHP_EXECUTABLE = NONE$/PHP_EXECUTABLE = \/usr\/bin\/php/' Makefile || true
