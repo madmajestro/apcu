@@ -11,8 +11,11 @@ jobs:
         run: sudo sh -c "echo 1 > /proc/sys/vm/nr_hugepages"
       - name: Checkout apcu
         uses: actions/checkout@v4
-      - name: check preinstalled php version
-        run: dpkg-query -W -f='${Package}\n' | grep php
+      - name: remove preinstalled php versions
+        run: |
+          dpkg-query -W -f='${Package}\n' | grep php
+          sudo apt-get -y autopurge php-common
+          sudo apt-get -y install shtool
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
