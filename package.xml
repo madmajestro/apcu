@@ -181,7 +181,6 @@
    <file name="apc_mutex.h" role="src" />
    <file name="apc_persist.c" role="src" />
    <file name="apc.php" role="src" />
-   <file name="apc_php.h" role="src" />
    <file name="apc_shm.c" role="src" />
    <file name="apc_shm.h" role="src" />
    <file name="apc_signal.c" role="src" />

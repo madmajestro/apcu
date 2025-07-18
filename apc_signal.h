@@ -21,7 +21,6 @@
 #define APC_SIGNAL_H
 
 #include "apc.h"
-#include "apc_php.h"
 
 typedef struct apc_signal_entry_t {
 	int signo;          /* signal number */
