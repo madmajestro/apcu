@@ -158,7 +158,6 @@
     <file name="data/abc.data" role="test" />
     <file name="bad/abc.data" role="test" />
    </dir>
-   <file name="apc_arginfo.h" role="src" />
    <file name="php_apc.stub.php" role="src" />
    <file name="php_apc_arginfo.h" role="src" />
    <file name="php_apc_legacy_arginfo.h" role="src" />
