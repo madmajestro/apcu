@@ -159,22 +159,22 @@ static zend_bool apc_cache_entry_expired(
 }
 
 /* apc_cache_wlocked_move_entry() is called during defragmentation, before an entry is moved to a new position. */
-static zend_bool apc_cache_wlocked_move_entry(apc_cache_t *cache, apc_cache_entry_t *old, apc_cache_entry_t *new) {
-	/* Check if the entry can be moved. */
-	if (old->ref_count > 0) {
-		return 0;
-	}
-
-	/* Change all references to this entry to the new position.
-	 * Since “next” is the 1st field of apc_cache_entry_t, the head pointer of the list
-	 * can be changed like a previous entry via ENTRYAT(old->prev)->next. */
-	ENTRYAT(old->prev)->next = ENTRYOF(new);
-	if (old->next) {
-		ENTRYAT(old->next)->prev = ENTRYOF(new);
-	}
-
-	return 1;
-}
+//static zend_bool apc_cache_wlocked_move_entry(apc_cache_t *cache, apc_cache_entry_t *old, apc_cache_entry_t *new) {
+//	/* Check if the entry can be moved. */
+//	if (old->ref_count > 0) {
+//		return 0;
+//	}
+//
+//	/* Change all references to this entry to the new position.
+//	 * Since “next” is the 1st field of apc_cache_entry_t, the head pointer of the list
+//	 * can be changed like a previous entry via ENTRYAT(old->prev)->next. */
+//	ENTRYAT(old->prev)->next = ENTRYOF(new);
+//	if (old->next) {
+//		ENTRYAT(old->next)->prev = ENTRYOF(new);
+//	}
+//
+//	return 1;
+//}
 
 /* Inserts an entry into a linked list. The argument entry_offset must point either
  * to entry->next of an existing entry or to the head pointer of a linked list. */
@@ -822,10 +822,10 @@ PHP_APCU_API zend_bool apc_cache_default_expunge(apc_cache_t* cache, size_t size
 	}
 
 	/* increment defragmentation statistics */
-	cache->header->ndefragmentations++;
+	//cache->header->ndefragmentations++;
 
 	/* run defragmentation to coalesce free blocks */
-	apc_sma_defrag(cache->sma, cache, (apc_sma_move_f)apc_cache_wlocked_move_entry);
+	//apc_sma_defrag(cache->sma, cache, (apc_sma_move_f)apc_cache_wlocked_move_entry);
 
 	/* if size bytes can't be allocated as a contiguous block after defragmentation, we do a real expunge */
 	if (!apc_sma_check_avail_contiguous(cache->sma, size)) {
