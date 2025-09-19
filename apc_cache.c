@@ -314,6 +314,8 @@ PHP_APCU_API apc_cache_t* apc_cache_create(apc_sma_t* sma, apc_serializer_t* ser
 	cache->header->nhits = 0;
 	cache->header->nmisses = 0;
 	cache->header->nentries = 0;
+	cache->header->ncleanups = 0;
+	cache->header->ndefragmentations = 0;
 	cache->header->nexpunges = 0;
 	cache->header->gc = NULL;
 	cache->header->stime = time(NULL);
@@ -725,6 +727,8 @@ PHP_APCU_API void apc_cache_clear(apc_cache_t* cache)
 
 	/* set info */
 	cache->header->stime = apc_time();
+	cache->header->ncleanups = 0;
+	cache->header->ndefragmentations = 0;
 	cache->header->nexpunges = 0;
 
 	apc_cache_wunlock(cache);
@@ -732,14 +736,17 @@ PHP_APCU_API void apc_cache_clear(apc_cache_t* cache)
 /* }}} */
 
 /* {{{ apc_cache_default_expunge */
-PHP_APCU_API void apc_cache_default_expunge(apc_cache_t* cache, size_t size)
+PHP_APCU_API zend_bool apc_cache_default_expunge(apc_cache_t* cache, size_t size)
 {
 	time_t t;
 	size_t i;
 
 	if (!cache) {
-		return;
+		return 1;
 	}
+
+	/* get the number of cleanups before acquiring the lock */
+	zend_long ncleanups = cache->header->ncleanups;
 
 	/* apc_time() depends on globals, don't read it if there's no cache. This may happen if SHM
 	 * is too small and the initial cache creation during MINIT triggers an expunge. */
@@ -747,7 +754,16 @@ PHP_APCU_API void apc_cache_default_expunge(apc_cache_t* cache, size_t size)
 
 	/* get the lock for header */
 	if (!apc_cache_wlock(cache)) {
-		return;
+		return 1;
+	}
+
+	/* inc number of default expunge calls */
+	cache->header->ndefragmentations++;
+
+	/* skip processing if another default expunge operation was performed while waiting for the write lock */
+	if (ncleanups < cache->header->ncleanups) {
+		apc_cache_wunlock(cache);
+		return 0;
 	}
 
 	/* gc */
@@ -780,7 +796,12 @@ PHP_APCU_API void apc_cache_default_expunge(apc_cache_t* cache, size_t size)
 		apc_cache_wlocked_real_expunge(cache);
 	}
 
+	/* Increment cache cleanup statistics (removal of expired entries).
+	 * This should be done late to detect stacking of default expunge operations. */
+	cache->header->ncleanups++;
+
 	apc_cache_wunlock(cache);
+	return 1;
 }
 /* }}} */
 
@@ -1080,7 +1101,9 @@ PHP_APCU_API zend_bool apc_cache_info(zval *info, apc_cache_t *cache, zend_bool 
 		add_assoc_double(info, "num_misses", (double) cache->header->nmisses);
 		add_assoc_double(info, "num_inserts", (double) cache->header->ninserts);
 		add_assoc_long(info,   "num_entries", cache->header->nentries);
-		add_assoc_double(info, "expunges", (double) cache->header->nexpunges);
+		add_assoc_long(info, "cleanups", cache->header->ncleanups);
+		add_assoc_long(info, "defragmentations", cache->header->ndefragmentations);
+		add_assoc_long(info, "expunges", cache->header->nexpunges);
 		add_assoc_long(info, "start_time", cache->header->stime);
 		array_add_double(info, apc_str_mem_size, (double) cache->header->mem_size);
 

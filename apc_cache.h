@@ -70,7 +70,9 @@ typedef struct _apc_cache_header_t {
 	zend_long nhits;                /* hit count */
 	zend_long nmisses;              /* miss count */
 	zend_long ninserts;             /* insert count */
-	zend_long nexpunges;            /* expunge count */
+	zend_long ncleanups;            /* default expunge count */
+	zend_long ndefragmentations;    /* defragmentation count */
+	zend_long nexpunges;            /* real expunge count */
 	zend_long nentries;             /* entry count */
 	zend_long mem_size;             /* used */
 	time_t stime;                   /* start time */
@@ -260,7 +262,7 @@ PHP_APCU_API void apc_cache_serializer(apc_cache_t* cache, const char* name);
 *
 * The TTL of an entry takes precedence over the TTL of a cache
 */
-PHP_APCU_API void apc_cache_default_expunge(apc_cache_t* cache, size_t size);
+PHP_APCU_API zend_bool apc_cache_default_expunge(apc_cache_t* cache, size_t size);
 
 /*
 * apc_cache_entry: generate and create or fetch an entry
