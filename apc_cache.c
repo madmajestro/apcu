@@ -735,8 +735,8 @@ PHP_APCU_API void apc_cache_clear(apc_cache_t* cache)
 PHP_APCU_API void apc_cache_default_expunge(apc_cache_t* cache, size_t size)
 {
 	time_t t;
-	size_t suitable = 0L;
-	size_t available = 0L;
+	//size_t suitable = 0L;
+	//size_t available = 0L;
 
 	if (!cache) {
 		return;
@@ -752,23 +752,23 @@ PHP_APCU_API void apc_cache_default_expunge(apc_cache_t* cache, size_t size)
 	}
 
 	/* make suitable selection */
-	suitable = (cache->smart > 0L) ? (size_t) (cache->smart * size) : (size_t) (cache->sma->size/2);
+	//suitable = (cache->smart > 0L) ? (size_t) (cache->smart * size) : (size_t) (cache->sma->size/2);
 
 	/* gc */
 	apc_cache_wlocked_gc(cache);
 
 	/* get available */
-	available = apc_sma_get_avail_mem(cache->sma);
+	//available = apc_sma_get_avail_mem(cache->sma);
 
 	/* perform expunge processing */
 	if (!cache->ttl) {
 		/* check it is necessary to expunge */
-		if (available < suitable) {
+		//if (available < suitable) {
 			apc_cache_wlocked_real_expunge(cache);
-		}
+		//}
 	} else {
 		/* check that expunge is necessary */
-		if (available < suitable) {
+		//if (available < suitable) {
 			size_t i;
 
 			/* look for junk */
@@ -793,7 +793,7 @@ PHP_APCU_API void apc_cache_default_expunge(apc_cache_t* cache, size_t size)
 				/* with not enough space left in cache, we are forced to expunge */
 				apc_cache_wlocked_real_expunge(cache);
 			}
-		}
+		//}
 	}
 
 	apc_cache_wunlock(cache);
