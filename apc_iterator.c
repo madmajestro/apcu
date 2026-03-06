@@ -84,10 +84,6 @@ static apc_iterator_item_t* apc_iterator_item_ctor(
 		ZVAL_LONG(&zv, entry->ctime);
 		zend_hash_add_new(ht, apc_str_creation_time, &zv);
 	}
-	if (APC_ITER_DTIME & iterator->format) {
-		ZVAL_LONG(&zv, entry->dtime);
-		zend_hash_add_new(ht, apc_str_deletion_time, &zv);
-	}
 	if (APC_ITER_ATIME & iterator->format) {
 		ZVAL_LONG(&zv, entry->atime);
 		zend_hash_add_new(ht, apc_str_access_time, &zv);
@@ -536,7 +532,6 @@ int apc_iterator_init(int module_number) {
 	REGISTER_LONG_CONSTANT("APC_ITER_NUM_HITS", APC_ITER_NUM_HITS, CONST_PERSISTENT | CONST_CS);
 	REGISTER_LONG_CONSTANT("APC_ITER_MTIME", APC_ITER_MTIME, CONST_PERSISTENT | CONST_CS);
 	REGISTER_LONG_CONSTANT("APC_ITER_CTIME", APC_ITER_CTIME, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("APC_ITER_DTIME", APC_ITER_DTIME, CONST_PERSISTENT | CONST_CS);
 	REGISTER_LONG_CONSTANT("APC_ITER_ATIME", APC_ITER_ATIME, CONST_PERSISTENT | CONST_CS);
 	REGISTER_LONG_CONSTANT("APC_ITER_REFCOUNT", APC_ITER_REFCOUNT, CONST_PERSISTENT | CONST_CS);
 	REGISTER_LONG_CONSTANT("APC_ITER_MEM_SIZE", APC_ITER_MEM_SIZE, CONST_PERSISTENT | CONST_CS);

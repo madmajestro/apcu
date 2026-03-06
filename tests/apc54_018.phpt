@@ -40,7 +40,7 @@ echo 'done';
 
 --EXPECTF--
 int(10000)
-array(11) {
+array(10) {
   ["type"]=>
   string(4) "user"
   ["key"]=>
@@ -53,8 +53,6 @@ array(11) {
   int(%d)
   ["creation_time"]=>
   int(%d)
-  ["deletion_time"]=>
-  int(0)
   ["access_time"]=>
   int(%d)
   ["ref_count"]=>
@@ -65,7 +63,7 @@ array(11) {
   int(0)
 }
 int(10000)
-array(11) {
+array(10) {
   ["type"]=>
   string(4) "user"
   ["key"]=>
@@ -78,8 +76,6 @@ array(11) {
   int(%d)
   ["creation_time"]=>
   int(%d)
-  ["deletion_time"]=>
-  int(0)
   ["access_time"]=>
   int(%d)
   ["ref_count"]=>
@@ -90,7 +86,7 @@ array(11) {
   int(0)
 }
 int(10000)
-array(11) {
+array(10) {
   ["type"]=>
   string(4) "user"
   ["key"]=>
@@ -103,8 +99,6 @@ array(11) {
   int(%d)
   ["creation_time"]=>
   int(%d)
-  ["deletion_time"]=>
-  int(0)
   ["access_time"]=>
   int(%d)
   ["ref_count"]=>
@@ -115,7 +109,7 @@ array(11) {
   int(0)
 }
 int(10000)
-array(11) {
+array(10) {
   ["type"]=>
   string(4) "user"
   ["key"]=>
@@ -128,8 +122,6 @@ array(11) {
   int(%d)
   ["creation_time"]=>
   int(%d)
-  ["deletion_time"]=>
-  int(0)
   ["access_time"]=>
   int(%d)
   ["ref_count"]=>
@@ -140,7 +132,7 @@ array(11) {
   int(0)
 }
 int(10000)
-array(11) {
+array(10) {
   ["type"]=>
   string(4) "user"
   ["key"]=>
@@ -153,8 +145,6 @@ array(11) {
   int(%d)
   ["creation_time"]=>
   int(%d)
-  ["deletion_time"]=>
-  int(0)
   ["access_time"]=>
   int(%d)
   ["ref_count"]=>
@@ -165,7 +155,7 @@ array(11) {
   int(0)
 }
 int(10000)
-array(11) {
+array(10) {
   ["type"]=>
   string(4) "user"
   ["key"]=>
@@ -178,8 +168,6 @@ array(11) {
   int(%d)
   ["creation_time"]=>
   int(%d)
-  ["deletion_time"]=>
-  int(0)
   ["access_time"]=>
   int(%d)
   ["ref_count"]=>
@@ -190,7 +178,7 @@ array(11) {
   int(0)
 }
 int(10000)
-array(11) {
+array(10) {
   ["type"]=>
   string(4) "user"
   ["key"]=>
@@ -203,8 +191,6 @@ array(11) {
   int(%d)
   ["creation_time"]=>
   int(%d)
-  ["deletion_time"]=>
-  int(0)
   ["access_time"]=>
   int(%d)
   ["ref_count"]=>
@@ -215,7 +201,7 @@ array(11) {
   int(0)
 }
 int(10000)
-array(11) {
+array(10) {
   ["type"]=>
   string(4) "user"
   ["key"]=>
@@ -228,8 +214,6 @@ array(11) {
   int(%d)
   ["creation_time"]=>
   int(%d)
-  ["deletion_time"]=>
-  int(0)
   ["access_time"]=>
   int(%d)
   ["ref_count"]=>
@@ -240,7 +224,7 @@ array(11) {
   int(0)
 }
 int(10000)
-array(11) {
+array(10) {
   ["type"]=>
   string(4) "user"
   ["key"]=>
@@ -253,8 +237,6 @@ array(11) {
   int(%d)
   ["creation_time"]=>
   int(%d)
-  ["deletion_time"]=>
-  int(0)
   ["access_time"]=>
   int(%d)
   ["ref_count"]=>

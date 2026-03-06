@@ -22,7 +22,6 @@
 #define APC_STRINGS \
 	X(access_time) \
 	X(creation_time) \
-	X(deletion_time) \
 	X(hits) \
 	X(info) \
 	X(key) \

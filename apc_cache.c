@@ -214,7 +214,7 @@ static void apc_cache_wlocked_remove_entry(apc_cache_t *cache, apc_cache_entry_t
 		free_entry(cache, entry);
 	} else {
 		/* add to gc if there are still refs */
-		entry->dtime = time(0);
+		entry->mtime = time(0);
 		apc_cache_wlocked_link_entry(cache, &cache->header->gc, entry);
 	}
 }
@@ -235,7 +235,7 @@ static void apc_cache_wlocked_gc(apc_cache_t* cache)
 	uintptr_t *entry_offset = &cache->header->gc;
 	while (*entry_offset) {
 		apc_cache_entry_t *entry = ENTRYAT(*entry_offset);
-		time_t gc_sec = cache->gc_ttl ? (now - entry->dtime) : 0;
+		time_t gc_sec = cache->gc_ttl ? (now - entry->mtime) : 0;
 
 		if (entry->ref_count > 0 && gc_sec <= (time_t)cache->gc_ttl) {
 			entry_offset = &entry->next;
@@ -423,7 +423,6 @@ static void apc_cache_set_entry_values(apc_cache_entry_t *entry, const int32_t t
 	entry->ctime = t;
 	entry->mtime = t;
 	entry->atime = t;
-	entry->dtime = 0;
 }
 
 /* TODO This function may lead to a deadlock on expunge */
@@ -1055,7 +1054,6 @@ static zval apc_cache_link_info(apc_cache_t *cache, apc_cache_entry_t *p)
 	array_add_double(&link, apc_str_num_hits, (double) p->nhits);
 	array_add_long(&link, apc_str_mtime, p->mtime);
 	array_add_long(&link, apc_str_creation_time, p->ctime);
-	array_add_long(&link, apc_str_deletion_time, p->dtime);
 	array_add_long(&link, apc_str_access_time, p->atime);
 	array_add_long(&link, apc_str_ref_count, p->ref_count);
 	array_add_long(&link, apc_str_mem_size, p->mem_size);
@@ -1176,7 +1174,6 @@ PHP_APCU_API void apc_cache_stat(apc_cache_t *cache, zend_string *key, zval *sta
 				array_add_long(stat, apc_str_access_time, entry->atime);
 				array_add_long(stat, apc_str_mtime, entry->mtime);
 				array_add_long(stat, apc_str_creation_time, entry->ctime);
-				array_add_long(stat, apc_str_deletion_time, entry->dtime);
 				array_add_long(stat, apc_str_ttl, entry->ttl);
 				array_add_long(stat, apc_str_refs, entry->ref_count);
 				break;

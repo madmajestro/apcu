@@ -55,7 +55,6 @@ struct apc_cache_entry_t {
 	zend_long nhits;         /* number of hits to this entry */
 	time_t ctime;            /* time entry was initialized */
 	time_t mtime;            /* the mtime of this cached entry */
-	time_t dtime;            /* time entry was removed from cache */
 	time_t atime;            /* time entry was last accessed */
 	zend_long mem_size;      /* memory used */
 	zval val;                /* the zval copied at store time */
