@@ -5,7 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout apcu
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Check files referenced in package.xml
         run: ./checkrel.sh
   ubuntu:
@@ -17,7 +17,7 @@ jobs:
       - name: Set the hugepages parameter
         run: sudo sh -c "echo 1 > /proc/sys/vm/nr_hugepages"
       - name: Checkout apcu
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -48,7 +48,7 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout apcu
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup PHP
         id: setup-php
         uses: php/setup-php-sdk@v0.12
@@ -82,7 +82,7 @@ jobs:
           copy %prefix%\php_apcu.dll win-install
           copy %prefix%\php_apcu.pdb win-install
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: apcu-${{matrix.version}}-${{matrix.arch}}-${{matrix.ts}}
           path: win-install
