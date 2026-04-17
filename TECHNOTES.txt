@@ -147,9 +147,9 @@ form of a quick-start guide to start hacking on APCu.
    apc_cache_wlocked_insert() shows what happens when a cache entry is inserted:
 
      /* calculate hash and entry */
-     apc_cache_hash_slot(cache, key, &h, &s);
+     apc_cache_hash_slot(cache, key, &hash, &slot);
 
-     uintptr_t *entry_offset = &cache->slots[s];
+     uintptr_t *entry_offset = &cache->slots[slot];
 
      while (*entry_offset) {
          apc_cache_entry_t *entry = ENTRYAT(*entry_offset);
