@@ -1063,7 +1063,7 @@ static zval apc_cache_link_info(apc_cache_t *cache, apc_cache_entry_t *p)
 	zend_hash_add_new(Z_ARRVAL(link), apc_str_info, &zv);
 
 	array_add_long(&link, apc_str_ttl, p->ttl);
-	array_add_double(&link, apc_str_num_hits, (double) p->nhits);
+	array_add_long(&link, apc_str_num_hits, p->nhits);
 	array_add_long(&link, apc_str_mtime, p->mtime);
 	array_add_long(&link, apc_str_creation_time, p->ctime);
 	array_add_long(&link, apc_str_deletion_time, p->dtime);
@@ -1095,15 +1095,15 @@ PHP_APCU_API zend_bool apc_cache_info(zval *info, apc_cache_t *cache, zend_bool 
 		array_init(info);
 		add_assoc_long(info, "num_slots", cache->nslots);
 		array_add_long(info, apc_str_ttl, cache->ttl);
-		array_add_double(info, apc_str_num_hits, (double) cache->header->nhits);
-		add_assoc_double(info, "num_misses", (double) cache->header->nmisses);
-		add_assoc_double(info, "num_inserts", (double) cache->header->ninserts);
-		add_assoc_long(info,   "num_entries", cache->header->nentries);
+		array_add_long(info, apc_str_num_hits, cache->header->nhits);
+		add_assoc_long(info, "num_misses", cache->header->nmisses);
+		add_assoc_long(info, "num_inserts", cache->header->ninserts);
+		add_assoc_long(info, "num_entries", cache->header->nentries);
 		add_assoc_long(info, "cleanups", cache->header->ncleanups);
 		add_assoc_long(info, "defragmentations", cache->header->ndefragmentations);
 		add_assoc_long(info, "expunges", cache->header->nexpunges);
 		add_assoc_long(info, "start_time", cache->header->stime);
-		array_add_double(info, apc_str_mem_size, (double) cache->header->mem_size);
+		array_add_long(info, apc_str_mem_size, cache->header->mem_size);
 
 #ifdef APC_MMAP
 		add_assoc_stringl(info, "memory_type", "mmap", sizeof("mmap")-1);

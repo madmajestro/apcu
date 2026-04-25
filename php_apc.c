@@ -406,8 +406,8 @@ PHP_FUNCTION(apcu_sma_info)
 
 	array_init(return_value);
 	add_assoc_long(return_value, "num_seg", 1);
-	add_assoc_double(return_value, "seg_size", (double)info->seg_size);
-	add_assoc_double(return_value, "avail_mem", (double)apc_sma_get_avail_mem(&apc_sma));
+	add_assoc_long(return_value, "seg_size", info->seg_size);
+	add_assoc_long(return_value, "avail_mem", apc_sma_get_avail_mem(&apc_sma));
 
 	if (limited) {
 		apc_sma_free_info(&apc_sma, info);
