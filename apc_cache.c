@@ -359,18 +359,14 @@ PHP_APCU_API apc_cache_t* apc_cache_create(apc_sma_t* sma, apc_serializer_t* ser
 }
 
 static inline zend_bool apc_cache_wlocked_insert(
-		apc_cache_t *cache, apc_cache_entry_t *new_entry, zend_bool exclusive) {
+		apc_cache_t *cache, apc_cache_entry_t *new_entry, size_t slot, zend_bool exclusive) {
 	zend_string *key = &new_entry->key;
 	time_t t = new_entry->ctime;
-	size_t s;
 
 	/* process deleted list  */
 	apc_cache_wlocked_gc(cache);
 
-	/* calculate hash and entry */
-	apc_cache_hash_slot(cache, key, &s);
-
-	uintptr_t *entry_offset = &cache->slots[s];
+	uintptr_t *entry_offset = &cache->slots[slot];
 	while (*entry_offset) {
 		apc_cache_entry_t *entry = ENTRYAT(*entry_offset);
 
@@ -426,7 +422,7 @@ static void apc_cache_set_entry_values(apc_cache_entry_t *entry, const int32_t t
 
 /* TODO This function may lead to a deadlock on expunge */
 static inline zend_bool apc_cache_wlocked_store_internal(
-		apc_cache_t *cache, zend_string *key, const zval *val,
+		apc_cache_t *cache, zend_string *key, size_t slot, const zval *val,
 		const int32_t ttl, const zend_bool exclusive) {
 	time_t t = apc_time();
 
@@ -444,7 +440,7 @@ static inline zend_bool apc_cache_wlocked_store_internal(
 	apc_cache_set_entry_values(entry, ttl, t);
 
 	/* execute an insertion */
-	if (!apc_cache_wlocked_insert(cache, entry, exclusive)) {
+	if (!apc_cache_wlocked_insert(cache, entry, slot, exclusive)) {
 		free_entry(cache, entry);
 		return 0;
 	}
@@ -457,17 +453,13 @@ static inline zend_bool apc_cache_wlocked_store_internal(
 
 /* Find entry, without updating stat counters or access time */
 static inline apc_cache_entry_t *apc_cache_rlocked_find_nostat(
-		apc_cache_t *cache, zend_string *key, time_t t) {
-	size_t s;
+		apc_cache_t *cache, zend_string *key, size_t slot, time_t t) {
 
-	/* calculate hash and slot */
-	apc_cache_hash_slot(cache, key, &s);
-
-	uintptr_t entry_offset = cache->slots[s];
+	uintptr_t entry_offset = cache->slots[slot];
 	while (entry_offset) {
 		apc_cache_entry_t *entry = ENTRYAT(entry_offset);
 
-		/* check for a matching key by has and identifier */
+		/* check for a matching key by hash and identifier */
 		if (apc_entry_key_equals(entry, key)) {
 			/* Check to make sure this entry isn't expired by a hard TTL */
 			if (apc_cache_entry_hard_expired(entry, t)) {
@@ -485,18 +477,13 @@ static inline apc_cache_entry_t *apc_cache_rlocked_find_nostat(
 
 /* Find entry, updating stat counters and access time */
 static inline apc_cache_entry_t *apc_cache_rlocked_find(
-		apc_cache_t *cache, zend_string *key, time_t t) {
+		apc_cache_t *cache, zend_string *key, size_t slot, time_t t) {
 
-	size_t s;
-
-	/* calculate hash and slot */
-	apc_cache_hash_slot(cache, key, &s);
-
-	uintptr_t entry_offset = cache->slots[s];
+	uintptr_t entry_offset = cache->slots[slot];
 	while (entry_offset) {
 		apc_cache_entry_t *entry = ENTRYAT(entry_offset);
 
-		/* check for a matching key by has and identifier */
+		/* check for a matching key by hash and identifier */
 		if (apc_entry_key_equals(entry, key)) {
 			/* Check to make sure this entry isn't expired by a hard TTL */
 			if (apc_cache_entry_hard_expired(entry, t)) {
@@ -518,8 +505,8 @@ static inline apc_cache_entry_t *apc_cache_rlocked_find(
 }
 
 static inline apc_cache_entry_t *apc_cache_rlocked_find_incref(
-		apc_cache_t *cache, zend_string *key, time_t t) {
-	apc_cache_entry_t *entry = apc_cache_rlocked_find(cache, key, t);
+		apc_cache_t *cache, zend_string *key, size_t slot, time_t t) {
+	apc_cache_entry_t *entry = apc_cache_rlocked_find(cache, key, slot, t);
 	if (!entry) {
 		return NULL;
 	}
@@ -531,6 +518,7 @@ static inline apc_cache_entry_t *apc_cache_rlocked_find_incref(
 PHP_APCU_API zend_bool apc_cache_store(
 		apc_cache_t* cache, zend_string *key, const zval *val,
 		const int32_t ttl, const zend_bool exclusive) {
+	size_t slot;
 	time_t t = apc_time();
 	zend_bool ret = 0;
 
@@ -552,6 +540,9 @@ PHP_APCU_API zend_bool apc_cache_store(
 	/* init remaining values of the entry */
 	apc_cache_set_entry_values(entry, ttl, t);
 
+	/* calculate hash and slot */
+	apc_cache_hash_slot(cache, key, &slot);
+
 	/* execute an insertion */
 	if (!apc_cache_wlock(cache)) {
 		free_entry(cache, entry);
@@ -559,7 +550,7 @@ PHP_APCU_API zend_bool apc_cache_store(
 	}
 
 	php_apc_try {
-		ret = apc_cache_wlocked_insert(cache, entry, exclusive);
+		ret = apc_cache_wlocked_insert(cache, entry, slot, exclusive);
 	} php_apc_finally {
 		apc_cache_wunlock(cache);
 
@@ -854,6 +845,7 @@ end_lbl:
 
 PHP_APCU_API zend_bool apc_cache_fetch(apc_cache_t* cache, zend_string *key, time_t t, zval *dst)
 {
+	size_t slot;
 	apc_cache_entry_t *entry;
 	zend_bool retval = 0;
 
@@ -861,11 +853,14 @@ PHP_APCU_API zend_bool apc_cache_fetch(apc_cache_t* cache, zend_string *key, tim
 		return 0;
 	}
 
+	/* calculate hash and slot */
+	apc_cache_hash_slot(cache, key, &slot);
+
 	if (!apc_cache_rlock(cache)) {
 		return 0;
 	}
 
-	entry = apc_cache_rlocked_find_incref(cache, key, t);
+	entry = apc_cache_rlocked_find_incref(cache, key, slot, t);
 	apc_cache_runlock(cache);
 
 	if (!entry) {
@@ -883,17 +878,21 @@ PHP_APCU_API zend_bool apc_cache_fetch(apc_cache_t* cache, zend_string *key, tim
 
 PHP_APCU_API zend_bool apc_cache_exists(apc_cache_t* cache, zend_string *key, time_t t)
 {
+	size_t slot;
 	apc_cache_entry_t *entry;
 
 	if (!cache) {
 		return 0;
 	}
 
+	/* calculate hash and slot */
+	apc_cache_hash_slot(cache, key, &slot);
+
 	if (!apc_cache_rlock(cache)) {
 		return 0;
 	}
 
-	entry = apc_cache_rlocked_find(cache, key, t);
+	entry = apc_cache_rlocked_find(cache, key, slot, t);
 	apc_cache_runlock(cache);
 
 	return entry != NULL;
@@ -903,6 +902,7 @@ PHP_APCU_API zend_bool apc_cache_update(
 		apc_cache_t *cache, zend_string *key, apc_cache_updater_t updater, void *data,
 		zend_bool insert_if_not_found, zend_long ttl)
 {
+	size_t slot;
 	apc_cache_entry_t *entry;
 	zend_bool retval = 0;
 	time_t t = apc_time();
@@ -911,12 +911,15 @@ PHP_APCU_API zend_bool apc_cache_update(
 		return 0;
 	}
 
+	/* calculate hash and slot */
+	apc_cache_hash_slot(cache, key, &slot);
+
 retry_update:
 	if (!apc_cache_wlock(cache)) {
 		return 0;
 	}
 
-	entry = apc_cache_rlocked_find_nostat(cache, key, t);
+	entry = apc_cache_rlocked_find_nostat(cache, key, slot, t);
 	if (entry) {
 		/* Only allow changes to simple values */
 		if (Z_TYPE(entry->val) < IS_STRING) {
@@ -951,6 +954,7 @@ PHP_APCU_API zend_bool apc_cache_atomic_update_long(
 		apc_cache_t *cache, zend_string *key, apc_cache_atomic_updater_t updater, void *data,
 		zend_bool insert_if_not_found, zend_long ttl)
 {
+	size_t slot;
 	apc_cache_entry_t *entry;
 	zend_bool retval = 0;
 	time_t t = apc_time();
@@ -959,12 +963,15 @@ PHP_APCU_API zend_bool apc_cache_atomic_update_long(
 		return 0;
 	}
 
+	/* calculate hash and slot */
+	apc_cache_hash_slot(cache, key, &slot);
+
 retry_update:
 	if (!apc_cache_rlock(cache)) {
 		return 0;
 	}
 
-	entry = apc_cache_rlocked_find_nostat(cache, key, t);
+	entry = apc_cache_rlocked_find_nostat(cache, key, slot, t);
 	if (entry) {
 		/* Only supports integers */
 		if (Z_TYPE(entry->val) == IS_LONG) {
@@ -997,21 +1004,21 @@ retry_update:
 
 PHP_APCU_API zend_bool apc_cache_delete(apc_cache_t *cache, zend_string *key)
 {
-	size_t s;
+	size_t slot;
 
 	if (!cache) {
 		return 0;
 	}
 
 	/* calculate hash and slot */
-	apc_cache_hash_slot(cache, key, &s);
+	apc_cache_hash_slot(cache, key, &slot);
 
 	if (!apc_cache_wlock(cache)) {
 		return 0;
 	}
 
 	/* find head */
-	uintptr_t *entry_offset = &cache->slots[s];
+	uintptr_t *entry_offset = &cache->slots[slot];
 	while (*entry_offset) {
 		apc_cache_entry_t *entry = ENTRYAT(*entry_offset);
 
@@ -1154,7 +1161,7 @@ PHP_APCU_API zend_bool apc_cache_info(zval *info, apc_cache_t *cache, zend_bool 
 
 /* fetches information about the key provided */
 PHP_APCU_API void apc_cache_stat(apc_cache_t *cache, zend_string *key, zval *stat) {
-	size_t s;
+	size_t slot;
 
 	ZVAL_NULL(stat);
 	if (!cache) {
@@ -1162,7 +1169,7 @@ PHP_APCU_API void apc_cache_stat(apc_cache_t *cache, zend_string *key, zval *sta
 	}
 
 	/* calculate hash and slot */
-	apc_cache_hash_slot(cache, key, &s);
+	apc_cache_hash_slot(cache, key, &slot);
 
 	if (!apc_cache_rlock(cache)) {
 		return;
@@ -1170,11 +1177,11 @@ PHP_APCU_API void apc_cache_stat(apc_cache_t *cache, zend_string *key, zval *sta
 
 	php_apc_try {
 		/* find head */
-		uintptr_t entry_offset = cache->slots[s];
+		uintptr_t entry_offset = cache->slots[slot];
 		while (entry_offset) {
 			apc_cache_entry_t *entry = ENTRYAT(entry_offset);
 
-			/* check for a matching key by has and identifier */
+			/* check for a matching key by hash and identifier */
 			if (apc_entry_key_equals(entry, key)) {
 				array_init(stat);
 				array_add_long(stat, apc_str_hits, entry->nhits);
@@ -1242,11 +1249,15 @@ PHP_APCU_API void apc_cache_serializer(apc_cache_t* cache, const char* name) {
 }
 
 PHP_APCU_API void apc_cache_entry(apc_cache_t *cache, zend_string *key, zend_fcall_info *fci, zend_fcall_info_cache *fcc, zend_long ttl, zend_long now, zval *return_value) {
+	size_t slot;
 	apc_cache_entry_t *entry = NULL;
 
 	if (!cache) {
 		return;
 	}
+
+	/* calculate hash and slot */
+	apc_cache_hash_slot(cache, key, &slot);
 
 	if (!apc_cache_wlock(cache)) {
 		return;
@@ -1254,7 +1265,7 @@ PHP_APCU_API void apc_cache_entry(apc_cache_t *cache, zend_string *key, zend_fca
 
 	APCG(entry_level)++;
 	php_apc_try {
-		entry = apc_cache_rlocked_find_incref(cache, key, now);
+		entry = apc_cache_rlocked_find_incref(cache, key, slot, now);
 		if (!entry) {
 			int result;
 			zval params[1];
@@ -1270,7 +1281,7 @@ PHP_APCU_API void apc_cache_entry(apc_cache_t *cache, zend_string *key, zend_fca
 
 			if (result == SUCCESS && !EG(exception)) {
 				apc_cache_wlocked_store_internal(
-					cache, key, return_value, (uint32_t) ttl, 1);
+					cache, key, slot, return_value, (uint32_t) ttl, 1);
 			}
 		} else {
 			apc_cache_entry_fetch_zval(cache, entry, return_value);
