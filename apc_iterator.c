@@ -559,6 +559,9 @@ int apc_iterator_init(int module_number) {
 	apc_iterator_ce->create_object = apc_iterator_create;
 #if PHP_VERSION_ID >= 80100
 	apc_iterator_ce->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
+#else
+	apc_iterator_ce->serialize = zend_class_serialize_deny;
+	apc_iterator_ce->unserialize = zend_class_unserialize_deny;
 #endif
 	zend_class_implements(apc_iterator_ce, 1, zend_ce_iterator);
 

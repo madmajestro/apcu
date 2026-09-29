@@ -3,7 +3,6 @@ APCUIterator: not serializable
 --SKIPIF--
 <?php
 require_once(dirname(__FILE__) . '/skipif.inc');
-if (PHP_VERSION_ID < 80100) die('skip PHP 8.1+ only');
 ?>
 --INI--
 apc.enabled=1
@@ -16,7 +15,8 @@ try {
     echo $e->getMessage(), "\n";
 }
 try {
-    unserialize('O:12:"APCUIterator":0:{}');
+    // Before PHP 8.1, only the C: format reaches the handler that throws
+    unserialize((PHP_VERSION_ID < 80100 ? 'C' : 'O') . ':12:"APCUIterator":0:{}');
 } catch (Exception $e) {
     echo $e->getMessage(), "\n";
 }
